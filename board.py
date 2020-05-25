@@ -56,9 +56,6 @@ class Board:
             return self.AI
         return None
 
-    def is_draw(self):
-        return self.winner() is None and self.get_empty_cells_number == 0
-
     def get_empty_cells_number(self):
         count = 0
         for i in range(0, 3):
