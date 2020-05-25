@@ -111,7 +111,7 @@ class Game:
             self.draw_game_message('lose.png')
             wait_key_pressed()
             return True
-        elif self.board.get_empty_cells_number() == 0:
+        elif len(self.board.get_empty_cells()) == 0:
             self.draw_game_message('draw.png')
             wait_key_pressed()
             return True

@@ -56,13 +56,13 @@ class Board:
             return self.AI
         return None
 
-    def get_empty_cells_number(self):
-        count = 0
+    def get_empty_cells(self):
+        cells = []
         for i in range(0, 3):
-            for j in range(0,3):
+            for j in range(0, 3):
                 if self.entire_board[i][j] == self.EMPTY:
-                    count += 1
-        return count
+                    cells.append((i, j))
+        return cells
 
     def get_pos(self, i, j):
         return self.size * i + self.size / 20, self.size * j + self.size / 20
