@@ -1,129 +1,87 @@
 import pygame
-import os
-import board
-import ai
 import random
 import time
-
-
-def wait_key_pressed():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
-            elif event.type == pygame.KEYDOWN:
-                return
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                return
+import collections
+import board
+from players import player, human, randomai, qlearningai
+import plot
 
 
 class Game:
-    def __init__(self):
-        self.size = 300
-        self.win = pygame.display.set_mode((self.size, self.size))
-        self.board = board.Board(self.size / 3)
-        random.seed(time.gmtime())
-        self.turn = random.randint(0, 1)
-        self.ai = ai.AI(self.board)
+    def __init__(self, size, player_1, player_2):
+        self.size = size
+        self.width = self.size * 100
+        self.win = pygame.display.set_mode((self.width, self.width))
+        self.board = board.Board(self.size)
+        self.players = {+1: player_1, -1: player_2}
+        self.current_player = random.choice([+1, -1])
 
     def run(self):
-        pygame.init()
-        self.choose_sign()
-        self.draw()
         run = True
+        for player_index in [+1, -1]:
+            self.players[player_index].reset_state()
         while run:
-            while self.turn == 1:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        run = False
-                        self.turn = 0
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        pos = pygame.mouse.get_pos()
-                        if self.board.set_sign(pos[0], pos[1]):
-                            self.turn = 0
-                    if event.type == pygame.KEYDOWN:
-                        pressed_keys = pygame.key.get_pressed()
-                        if pressed_keys[pygame.K_LALT] and pressed_keys[pygame.K_F4]:
-                            run = False
-                            self.turn = 0
-
-            self.ai.make_turn()
-            self.turn = 1
             self.draw()
+            self.move()
             if self.is_game_over():
-                run = False
-
+                self.draw()
+                time.sleep(3)
+                for player_index in [+1, -1]:
+                    self.players[player_index].reset_state()
+                self.board.clear()
         pygame.quit()
+
+    def train(self, iterations):
+        random.seed(time.gmtime())
+        results = []
+        # results = [self.play() for _ in range(iterations)]
+        for _ in range(iterations):
+            print('Iteration ' + str(_))
+            results.append(self.play())
+        print(collections.Counter(results))
+        plot.plot(results, title='Training',
+                  first_label='First Player (Q-Learning) Wins',
+                  second_label='Second Player (Random) Wins')
+        for player_index in [+1, -1]:
+            self.players[player_index].save_model()
+
+    def play(self):
+        self.board.clear()
+        for player_index in [+1, -1]:
+            self.players[player_index].reset_state()
+        self.current_player = +1  # random.choice([-1, +1])
+        game_end_state = self.board.check_game_end()
+        while game_end_state is None:
+            self.move()
+            game_end_state = self.board.check_game_end()
+        for player_index in [+1, -1]:
+            reward_value = +1 if player == game_end_state else -1
+            self.players[player_index].reward(reward_value)
+        return game_end_state
+
+    def move(self):
+        move = self.players[self.current_player].move(self.board)
+        self.board.set_sign(move, self.current_player)
+        self.current_player *= -1
 
     def draw(self):
         self.win.fill((255, 255, 255))
         self.board.draw(self.win)
         pygame.display.update()
 
-    def choose_sign(self):
-        sign_size = int(self.size / 3 - self.size / 60)
-        cross = pygame.transform.scale(
-            pygame.image.load(os.path.join('imgs', 'cross.png')),
-            (sign_size, sign_size))
-        nought = pygame.transform.scale(
-            pygame.image.load(os.path.join('imgs', 'nought.png')),
-            (sign_size, sign_size))
-
-        top = self.size // 4
-        text_font = pygame.font.SysFont('Arial', 32)
-        label = text_font.render('Choose your sign', True, (0, 0, 0))
-        label_width, label_height = text_font.size('Choose your sign')
-        cross_rect = [(10, top + label_height),
-                      (10 + sign_size, 10 + sign_size)]
-        nought_rect = [(self.size - 20 - sign_size, top + label_height),
-                       (10 + sign_size, 10 + sign_size)]
-        chosen = False
-        while not chosen:
-            for event in pygame.event.get():
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    pos = pygame.mouse.get_pos()
-                    if cross_rect[0][0] <= pos[0] <= cross_rect[0][0] + cross_rect[1][0] and \
-                            cross_rect[0][1] <= pos[1] <= cross_rect[0][1] + cross_rect[1][1]:
-                        self.board.set_player_sign(cross)
-                        self.board.set_ai_sign(nought)
-                        chosen = True
-                    elif nought_rect[0][0] <= pos[0] <= nought_rect[0][0] + nought_rect[1][0] and \
-                            nought_rect[0][1] <= pos[1] <= nought_rect[0][1] + nought_rect[1][1]:
-                        self.board.set_player_sign(nought)
-                        self.board.set_ai_sign(cross)
-                        chosen = True
-                        
-            pygame.draw.rect(self.win, (255, 255, 255), pygame.Rect(0, top, self.size, self.size // 2))
-            self.win.blit(label, (self.size // 2 - label_width // 2, top))
-            pygame.draw.rect(self.win, (0, 0, 0), pygame.Rect(cross_rect[0], cross_rect[1]))
-            self.win.blit(cross, (cross_rect[0][0] + 5, cross_rect[0][1] + 5))
-            pygame.draw.rect(self.win, (0, 0, 0), pygame.Rect(nought_rect[0], nought_rect[1]))
-            self.win.blit(nought, (nought_rect[0][0] + 5, nought_rect[0][1] + 5))
-            pygame.display.update()
-
     def is_game_over(self):
-        winner = self.board.winner()
-        if winner == self.board.PLAYER:
-            self.draw_game_message('win.png')
-            wait_key_pressed()
-            return True
-        elif winner == self.board.AI:
-            self.draw_game_message('lose.png')
-            wait_key_pressed()
-            return True
-        elif len(self.board.get_empty_cells()) == 0:
-            self.draw_game_message('draw.png')
-            wait_key_pressed()
-            return True
-
-    def draw_game_message(self, message_file_name):
-        pos = (0, self.size // 4)
-        message = pygame.image.load(os.path.join('imgs', message_file_name))
-        message = pygame.transform.scale(message, (self.size, self.size // 2))
-        self.win.blit(message, pos)
-        pygame.display.update()
+        game_end_state = self.board.check_game_end()
+        if game_end_state is None:
+            return False
+        for player_index in [+1, -1]:
+            reward_value = +1 if player == game_end_state else -1
+            self.players[player_index].reward(reward_value)
+        return True
 
 
 if __name__ == '__main__':
-    game = Game()
+    size = 3
+    # game = Game(size, qlearningai.QLearningAI(size, 4), randomai.RandomAI())
+    # game.train(100)
+    game = Game(size, qlearningai.QLearningAI(size, 8), human.Human(size, 100))
     game.run()
