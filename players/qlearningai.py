@@ -4,33 +4,35 @@ from players import player
 
 
 class QLearningAI(player.Player):
-    def __init__(self, size, seed):
+    def __init__(self, size, name):
         self.size = size
-        self.seed = seed
+        self.name = name
         self.training = True
-        # self.model = self.create_model()
-        self.model = self.load_model()
+        self.model = self.create_model()
+        # self.model = self.load_model()
         self.model.compile(optimizer='sgd', loss='mean_squared_error')
 
     def create_model(self):
         model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Dense(self.size ** 2,
-                                        kernel_initializer=tf.keras.initializers.glorot_uniform(seed=self.seed)))
+        model.add(tf.keras.layers.Dense(self.size ** 4, input_shape=(self.size ** 2, ), activation='relu',
+                                        kernel_initializer=tf.keras.initializers.zeros()))
+        model.add(tf.keras.layers.Dense(self.size ** 4))
+        model.add(tf.keras.layers.Dense(self.size ** 2))
         return model
 
     def load_model(self):
-        json_file = open('model.json', 'r')
+        json_file = open(self.name + 'model.json', 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         model = tf.keras.models.model_from_json(loaded_model_json)
-        model.load_weights('model.h5')
+        model.load_weights(self.name + 'model.h5')
         return model
 
     def save_model(self):
         model_json = self.model.to_json()
-        with open('model.json', 'w') as json_file:
+        with open(self.name + 'model.json', 'w') as json_file:
             json_file.write(model_json)
-        self.model.save_weights('model.h5')
+        self.model.save_weights(self.name + 'model.h5')
 
     def reset_state(self):
         self.last_move = None

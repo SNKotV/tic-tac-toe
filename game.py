@@ -4,7 +4,6 @@ import time
 import collections
 import board
 from players import player, human, randomai, qlearningai
-import plot
 
 
 class Game:
@@ -14,11 +13,11 @@ class Game:
         self.win = pygame.display.set_mode((self.width, self.width))
         self.board = board.Board(self.size)
         self.players = {+1: player_1, -1: player_2}
-        self.current_player = random.choice([+1, -1])
+        self.current_player = random.choice([-1, 1])
 
     def run(self):
         run = True
-        for player_index in [+1, -1]:
+        for player_index in [-1, 1]:
             self.players[player_index].reset_state()
         while run:
             self.draw()
@@ -26,36 +25,34 @@ class Game:
             if self.is_game_over():
                 self.draw()
                 time.sleep(3)
-                for player_index in [+1, -1]:
+                for player_index in [-1, 1]:
                     self.players[player_index].reset_state()
                 self.board.clear()
         pygame.quit()
+        for player_index in [-1, 1]:
+            self.players[player_index].save_model()
 
     def train(self, iterations):
         random.seed(time.gmtime())
         results = []
-        # results = [self.play() for _ in range(iterations)]
         for _ in range(iterations):
             print('Iteration ' + str(_))
             results.append(self.play())
         print(collections.Counter(results))
-        plot.plot(results, title='Training',
-                  first_label='First Player (Q-Learning) Wins',
-                  second_label='Second Player (Random) Wins')
-        for player_index in [+1, -1]:
+        for player_index in [-1, 1]:
             self.players[player_index].save_model()
 
     def play(self):
         self.board.clear()
-        for player_index in [+1, -1]:
+        for player_index in [-1, 1]:
             self.players[player_index].reset_state()
-        self.current_player = +1  # random.choice([-1, +1])
+        random.choice([-1, 1])
         game_end_state = self.board.check_game_end()
         while game_end_state is None:
             self.move()
             game_end_state = self.board.check_game_end()
-        for player_index in [+1, -1]:
-            reward_value = +1 if player == game_end_state else -1
+        for player_index in [-1, 1]:
+            reward_value = 1 if player == game_end_state else -1
             self.players[player_index].reward(reward_value)
         return game_end_state
 
@@ -73,15 +70,13 @@ class Game:
         game_end_state = self.board.check_game_end()
         if game_end_state is None:
             return False
-        for player_index in [+1, -1]:
-            reward_value = +1 if player == game_end_state else -1
+        for player_index in [-1, 1]:
+            reward_value = 1 if player == game_end_state else -1
             self.players[player_index].reward(reward_value)
         return True
 
 
 if __name__ == '__main__':
-    size = 3
-    # game = Game(size, qlearningai.QLearningAI(size, 4), randomai.RandomAI())
-    # game.train(100)
-    game = Game(size, qlearningai.QLearningAI(size, 8), human.Human(size, 100))
+    size = 4
+    game = Game(size, qlearningai.QLearningAI(size, 'q_1'), human.Human(size, 100))
     game.run()
